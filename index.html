@@ -1,26 +1,25 @@
 <html>
-	<head>
-		<meta charset="utf-8">
-		<script src="wasm_exec.js"></script>
-		<script>
-			const go = new Go();
-			WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
-				go.run(result.instance);
-			});
-		</script>
-		<style>
-			body {
-				background-color: rgb(82, 86, 89);
-				margin:0;
-			}
-			canvas {
-				display: block;
-				margin: auto;
-				padding-top: 50px;
-			}
-		</style>
-	</head>
-	<body>
-		<canvas id="canvas"></canvas>
-	</body>
+  <head>
+    <meta charset="utf-8">
+    <script src="wasm_exec.js"></script>
+    <script>
+      const go = new Go();
+      WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
+        go.run(result.instance);
+      });
+    </script>
+    <style>
+      body {
+        background-color: rgb(82, 86, 89);
+        margin:0;
+      }
+      canvas {
+        display: block;
+        margin: 50px auto 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+  </body>
 </html>
