@@ -14,5 +14,7 @@ services:
       - /bin/sh
       - -c
       - |
+        set -e
+        go fmt .
         GOARCH=wasm GOOS=js go build -o main.wasm main.go
         GOOS=linux GOARCH=amd64 go run server.go

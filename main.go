@@ -1,68 +1,64 @@
+// +build js,wasm
+
 package main
 
 import (
-	"math"
+	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
 	"syscall/js"
 )
 
-var (
-	mousePos [2]float64
-	ctx      js.Value
-)
+type Canvas struct {
+	height  float64
+	width   float64
+	element js.Value
+}
+
+func NewCanvas(width float64, height float64, element js.Value) *Canvas {
+
+	return &Canvas{
+		height:  height,
+		width:   width,
+		element: element,
+	}
+}
+
+func (canvas *Canvas) Render(img *image.RGBA) {
+	canvas.element.Set("height", canvas.height)
+	canvas.element.Set("width", canvas.width)
+	ctx := canvas.element.Call("getContext", "2d")
+	canvasData := ctx.Call("createImageData", canvas.width, canvas.height)
+	canvasData.Get("data").Call("set", js.TypedArrayOf(img.Pix))
+
+	ctx.Call("putImageData", canvasData, 0, 0)
+}
+
+func loadImage() *image.RGBA {
+	img := image.NewRGBA(image.Rect(0, 0, 700, 900))
+	white := color.RGBA{255, 255, 255, 255}
+	draw.Draw(img, img.Bounds(), image.NewUniform(white), image.ZP, draw.Src)
+	return img
+}
 
 func main() {
 
-	doc := js.Global().Get("document")
-	canvasEl := js.Global().Get("document").Call("getElementById", "canvas")
+	el := js.Global().Get("document").Call("getElementById", "canvas")
+	canvas := NewCanvas(700, 900, el)
 
-	bodyW := doc.Get("body").Get("clientWidth").Float()
-	bodyH := doc.Get("body").Get("clientHeight").Float()
-	canvasEl.Set("width", bodyW)
-	canvasEl.Set("height", bodyH)
-	ctx = canvasEl.Call("getContext", "2d")
+	img := loadImage()
 
-	done := make(chan struct{}, 0)
+	canvas.Render(img)
 
-	colorRot := float64(0)
-	curPos := []float64{100, 75}
-
-	mouseMoveEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		e := args[0]
-		mousePos[0] = e.Get("clientX").Float()
-		mousePos[1] = e.Get("clientY").Float()
-    return nil
-	})
-	defer mouseMoveEvt.Release()
-
-	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
-
-	var renderFrame js.Func
-	renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		// Handle window resizing
-		curBodyW := doc.Get("body").Get("clientWidth").Float()
-		curBodyH := doc.Get("body").Get("clientHeight").Float()
-		if curBodyW != bodyW || curBodyH != bodyH {
-			bodyW, bodyH = curBodyW, curBodyH
-			canvasEl.Set("width", bodyW)
-			canvasEl.Set("height", bodyH)
-		}
-		moveX := (mousePos[0] - curPos[0]) * 0.02
-		moveY := (mousePos[1] - curPos[1]) * 0.02
-
-		curPos[0] += moveX
-		curPos[1] += moveY
-
-		colorRot = float64(int(colorRot+1) % 360)
-		ctx.Call("beginPath")
-		ctx.Call("arc", curPos[0], curPos[1], 50, 0, 2*math.Pi)
-		ctx.Call("fill")
-
-		js.Global().Call("requestAnimationFrame", renderFrame)
-    return nil
+	resizeCallback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		fmt.Println("resize")
+		return nil
 	})
 	defer renderFrame.Release()
 
-	js.Global().Call("requestAnimationFrame", renderFrame)
+	js.Global().Call("addEventListener", "resize", resizeCallback)
 
+	done := make(chan struct{}, 0)
 	<-done
 }
