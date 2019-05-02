@@ -37,7 +37,7 @@ func (page *Page) Render() {
 	width := int(float64(page.width) * page.zoomFactor)
 	height := int(float64(page.height) * page.zoomFactor)
 
-	img := transform.Resize(page.originalImg, width, height, transform.Linear)
+	img := transform.Resize(page.originalImg, width, height, transform.NearestNeighbor)
 	img = transform.Rotate(img, page.rotationAngle, &transform.RotationOptions{ResizeBounds: true, Pivot: &image.Point{0, 0}})
 	bounds := img.Bounds()
 
