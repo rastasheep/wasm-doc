@@ -1,15 +1,14 @@
-// +build js,wasm
+//transform+build js,wasm
 
 package main
 
 import (
 	"fmt"
+	"github.com/anthonynsimon/bild/transform"
 	"image"
 	"image/color"
 	"image/draw"
 	"syscall/js"
-
-	"./resize"
 )
 
 type Page struct {
@@ -39,7 +38,7 @@ func (page *Page) Render() {
 func (page *Page) Zoom(factor float64) {
 	page.width = int(float64(page.width) * factor)
 	page.height = int(float64(page.height) * factor)
-	img := resize.Resize(page.originalImg, page.originalImg.Bounds(), page.width, page.height)
+	img := transform.Resize(page.originalImg, page.width, page.height, transform.Linear)
 	page.currentImg = img
 	page.Render()
 }
@@ -122,7 +121,7 @@ func main() {
 
 	zoomOut := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		fmt.Println("zoomOut")
-		page.Zoom(page.zoomFactor - 0.25)
+		page.Zoom(page.zoomFactor - 0.1)
 		return nil
 	})
 	defer zoomOut.Release()
