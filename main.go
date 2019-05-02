@@ -16,7 +16,6 @@ type Page struct {
 	height      int
 	zoomFactor  float64
 	originalImg image.Image
-	currentImg  image.Image
 	canvas      *Canvas
 }
 
@@ -26,20 +25,20 @@ func NewPage(src image.Image, width int, height int, canvas *Canvas) *Page {
 		height:      height,
 		zoomFactor:  1,
 		originalImg: src,
-		currentImg:  src,
 		canvas:      canvas,
 	}
 }
 
 func (page *Page) Render() {
-	page.canvas.Render(page.currentImg.(*image.RGBA), page.width, page.height)
+	width := int(float64(page.width) * page.zoomFactor)
+	height := int(float64(page.height) * page.zoomFactor)
+
+	img := transform.Resize(page.originalImg, width, height, transform.Linear)
+	page.canvas.Render(img, width, height)
 }
 
 func (page *Page) Zoom(factor float64) {
-	page.width = int(float64(page.width) * factor)
-	page.height = int(float64(page.height) * factor)
-	img := transform.Resize(page.originalImg, page.width, page.height, transform.Linear)
-	page.currentImg = img
+	page.zoomFactor = factor
 	page.Render()
 }
 
