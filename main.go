@@ -14,20 +14,22 @@ import (
 var ZoomFactors = []float64{0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3}
 
 type Page struct {
-	width       int
-	height      int
-	zoomFactor  float64
-	originalImg image.Image
-	canvas      *Canvas
+	width         int
+	height        int
+	rotationAngle float64
+	zoomFactor    float64
+	originalImg   image.Image
+	canvas        *Canvas
 }
 
 func NewPage(src image.Image, width int, height int, canvas *Canvas) *Page {
 	return &Page{
-		width:       width,
-		height:      height,
-		zoomFactor:  1,
-		originalImg: src,
-		canvas:      canvas,
+		width:         width,
+		height:        height,
+		rotationAngle: 0,
+		zoomFactor:    1,
+		originalImg:   src,
+		canvas:        canvas,
 	}
 }
 
@@ -36,7 +38,16 @@ func (page *Page) Render() {
 	height := int(float64(page.height) * page.zoomFactor)
 
 	img := transform.Resize(page.originalImg, width, height, transform.Linear)
-	page.canvas.Render(img, width, height)
+	img = transform.Rotate(img, page.rotationAngle, &transform.RotationOptions{ResizeBounds: true, Pivot: &image.Point{0, 0}})
+	bounds := img.Bounds()
+
+	fmt.Println("render", page.zoomFactor, page.rotationAngle, bounds.Max.X, bounds.Max.Y)
+	page.canvas.Render(img, bounds.Max.X, bounds.Max.Y)
+}
+
+func (page *Page) Rotate() {
+	page.rotationAngle += 90
+	page.Render()
 }
 
 func (page *Page) ZoomIn() {
@@ -150,6 +161,7 @@ func main() {
 
 	rotateClockwise := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		fmt.Println("rotateClockwise")
+		page.Rotate()
 		return nil
 	})
 	defer rotateClockwise.Release()
