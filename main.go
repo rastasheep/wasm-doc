@@ -8,29 +8,58 @@ import (
 	"image/color"
 	"image/draw"
 	"syscall/js"
+
+	"./resize"
 )
 
+type Page struct {
+	width       int
+	height      int
+	zoomFactor  float64
+	originalImg image.Image
+	currentImg  image.Image
+	canvas      *Canvas
+}
+
+func NewPage(src image.Image, width int, height int, canvas *Canvas) *Page {
+	return &Page{
+		width:       width,
+		height:      height,
+		zoomFactor:  1,
+		originalImg: src,
+		currentImg:  src,
+		canvas:      canvas,
+	}
+}
+
+func (page *Page) Render() {
+	page.canvas.Render(page.currentImg.(*image.RGBA), page.width, page.height)
+}
+
+func (page *Page) Zoom(factor float64) {
+	page.width = int(float64(page.width) * factor)
+	page.height = int(float64(page.height) * factor)
+	img := resize.Resize(page.originalImg, page.originalImg.Bounds(), page.width, page.height)
+	page.currentImg = img
+	page.Render()
+}
+
 type Canvas struct {
-	height  float64
-	width   float64
 	element js.Value
 	onClick js.Func
 }
 
-func NewCanvas(width float64, height float64, element js.Value) *Canvas {
-
+func NewCanvas(element js.Value) *Canvas {
 	return &Canvas{
-		height:  height,
-		width:   width,
 		element: element,
 	}
 }
 
-func (canvas *Canvas) Render(img *image.RGBA) {
-	canvas.element.Set("height", canvas.height)
-	canvas.element.Set("width", canvas.width)
+func (canvas *Canvas) Render(img *image.RGBA, width int, height int) {
+	canvas.element.Set("width", width)
+	canvas.element.Set("height", height)
 	ctx := canvas.element.Call("getContext", "2d")
-	canvasData := ctx.Call("createImageData", canvas.width, canvas.height)
+	canvasData := ctx.Call("createImageData", width, height)
 	canvasData.Get("data").Call("set", js.TypedArrayOf(img.Pix))
 
 	ctx.Call("putImageData", canvasData, 0, 0)
@@ -59,7 +88,7 @@ func (canvas *Canvas) ParseCoordinates(x int, y int) (int, int) {
 	return x, y
 }
 
-func loadImage() *image.RGBA {
+func loadImage() image.Image {
 	img := image.NewRGBA(image.Rect(0, 0, 700, 900))
 	white := color.RGBA{255, 255, 255, 255}
 	draw.Draw(img, img.Bounds(), image.NewUniform(white), image.ZP, draw.Src)
@@ -68,13 +97,13 @@ func loadImage() *image.RGBA {
 
 func main() {
 	el := js.Global().Get("document").Call("getElementById", "canvas")
-	canvas := NewCanvas(700, 900, el)
-
-	img := loadImage()
-	canvas.Render(img)
-
+	canvas := NewCanvas(el)
 	canvas.AttachOnClick()
 	defer canvas.RemoveOnClick()
+
+	img := loadImage()
+	page := NewPage(img, 700, 900, canvas)
+	page.Render()
 
 	resizeCallback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		fmt.Println("resize")
@@ -82,6 +111,29 @@ func main() {
 	})
 	defer resizeCallback.Release()
 	js.Global().Call("addEventListener", "resize", resizeCallback)
+
+	zoomIn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		fmt.Println("zoomIn")
+		page.Zoom(page.zoomFactor + 0.1)
+		return nil
+	})
+	defer zoomIn.Release()
+	js.Global().Set("zoomIn", zoomIn)
+
+	zoomOut := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		fmt.Println("zoomOut")
+		page.Zoom(page.zoomFactor - 0.25)
+		return nil
+	})
+	defer zoomOut.Release()
+	js.Global().Set("zoomOut", zoomOut)
+
+	rotateClockwise := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		fmt.Println("rotateClockwise")
+		return nil
+	})
+	defer rotateClockwise.Release()
+	js.Global().Set("rotateClockwise", rotateClockwise)
 
 	done := make(chan struct{}, 0)
 	<-done
