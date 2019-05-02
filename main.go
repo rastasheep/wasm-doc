@@ -11,6 +11,8 @@ import (
 	"syscall/js"
 )
 
+var ZoomFactors = []float64{0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3}
+
 type Page struct {
 	width       int
 	height      int
@@ -35,6 +37,26 @@ func (page *Page) Render() {
 
 	img := transform.Resize(page.originalImg, width, height, transform.Linear)
 	page.canvas.Render(img, width, height)
+}
+
+func (page *Page) ZoomIn() {
+	newZoomFactor := ZoomFactors[len(ZoomFactors)-1]
+	for i := len(ZoomFactors) - 1; i >= 0; i-- {
+		if ZoomFactors[i] > page.zoomFactor {
+			newZoomFactor = ZoomFactors[i]
+		}
+	}
+	page.Zoom(newZoomFactor)
+}
+
+func (page *Page) ZoomOut() {
+	newZoomFactor := ZoomFactors[0]
+	for _, factor := range ZoomFactors {
+		if factor < page.zoomFactor {
+			newZoomFactor = factor
+		}
+	}
+	page.Zoom(newZoomFactor)
 }
 
 func (page *Page) Zoom(factor float64) {
@@ -112,7 +134,7 @@ func main() {
 
 	zoomIn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		fmt.Println("zoomIn")
-		page.Zoom(page.zoomFactor + 0.1)
+		page.ZoomIn()
 		return nil
 	})
 	defer zoomIn.Release()
@@ -120,7 +142,7 @@ func main() {
 
 	zoomOut := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		fmt.Println("zoomOut")
-		page.Zoom(page.zoomFactor - 0.1)
+		page.ZoomOut()
 		return nil
 	})
 	defer zoomOut.Release()
